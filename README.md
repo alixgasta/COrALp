@@ -1,115 +1,87 @@
-# Database di COrALp
+# 🌿 Database & Pipeline Computazionale COrALp
 
-Repository ufficiale della pipeline computazionale per il progetto Interreg COrALp. Include gli script in R e Python per l’integrazione, la riconciliazione tassonomica e l’arricchimento ecologico-conservazionistico (IUCN/Species+) della flora delle Alpi Latine, con la struttura del database relazionale normalizzato (1NF).
+Benvenuto nella repository ufficiale della pipeline computazionale sviluppata per il progetto **Interreg COrALp**.
 
----
-
-## 📐 Architettura della Pipeline
-
-La pipeline si articola in quattro fasi consecutive:
-
-1. **Riconciliazione Tassonomica (`taxonomic_reconciliation.R`)**: Allineamento dei nomi botanici grezzi e risoluzione delle sinonimie tramite i backbone di WCVP, WFO e IPNI.
-2. **Estrazione Occorrenze GBIF (`gbif_alcotra_occurrences.py`)**: Interrogazione geospaziale sulle aree amministrative ALCOTRA (GADM 4.1) per il conteggio e la presenza delle specie.
-3. **Arricchimento Ecologico e Conservazionista (`conservation_enrichment_complete.py`)**: Data mining dalle API IUCN Red List e Species+ (UNEP-WCMC) per attributi ecologici, status di rischio e tutela normativa.
-4. **Normalizzazione Relazionale 1NF (`matrix_normalization_explode.py`)**: Esplosione delle variabili multivalore in tabelle atomiche 1NF pronte per l'importazione in SGBD/SQLite.
+Questa suite di script (in **R** e **Python**) consente di automatizzare l'intero ciclo di vita dei dati floristici per la regione delle Alpi Latine:
+1. **Riconciliazione tassonomica** e risoluzione delle sinonimie botaniche.
+2. **Estrazione delle occorrenze geografiche** georeferenziate dai territori ALCOTRA.
+3. **Data mining dello status di conservazione** e dei tratti ecologici (IUCN / Species+).
+4. **Normalizzazione e scomposizione (1NF)** per l'integrazione in database relazionali SQL.
 
 ---
 
-## 🛠️ Moduli e Script
-
-### 1. `taxonomic_reconciliation.R`
-Script in R dedicato all'allineamento tassonomico standardizzato della checklist floristica del progetto.
-
-* **Funzionalità**:
-  * Caricamento e parsing dei dati di input (`parsed_name`, `wcvp_id`, `wfo_id`).
-  * Lookup esatto per ID ed esecuzione di matching sia esatto che fuzzy tramite `rWCVP` e `WorldFlora`.
-  * Gestione specifica degli ibridi interspecifici (con e senza il prefisso `×`).
-  * Consolidamento gerarchico dei dati con priorità WCVP rispetto a WFO e recupero automatico del link IPNI (`https://www.ipni.org/n/...`).
-* **Output**: File Excel `Enriched_FINAL_taxonomic_reconciliation2.0.xlsx` con tre fogli (`Unique_Taxa`, `Source_Summary`, `FULL_Enriched`).
-
----
-
-### 2. `gbif_alcotra_occurrences.py`
-Modulo Python per l'estrazione controllata dei dati di occorrenza georeferenziata da GBIF limitatamente ai territori del programma ALCOTRA.
-
-* **Funzionalità**:
-  * Match esatto del taxon via GBIF Species API (senza fuzzy matching per evitare falsi positivi).
-  * Download automatico dei confini amministrativi GADM 4.1 per i dipartimenti francesi e le province italiane coinvolte.
-  * Verifica e risoluzione dinamica dei codici GID per prevenire errori territoriali.
-  * Interrogazione geospaziale GBIF Occurrence API con ripristino automatico in caso di *rate limiting* o disconnessione (retry logic / backoff).
-* **Output**: CSV `risultati_gbif_alcotra.csv` contenente i conteggi dettagliati e gli indicatori di presenza per singola area amministrativa.
+## 📋 Indice
+1. [Prerequisiti & Guida ai Token API](#-prerequisiti--guida-ai-token-api)
+2. [Installazione e Configurazione](#-installazione-e-configurazione)
+3. [Struttura dei File nel Repository](#-struttura-dei-file-nel-repository)
+4. [Guida Dettagliata agli Script](#-guida-dettagliata-agli-script)
+   - [1. Riconciliazione Tassonomica (`taxonomic_reconciliation.R`)](#1-taxonomic_reconciliationr)
+   - [2. Occorrenze GBIF (`gbif_alcotra_occurrences.py`)](#2-gbif_alcotra_occurrencespy)
+   - [3. Arricchimento Conservazionistico (`conservation_enrichment_complete.py`)](#3-conservation_enrichment_completepy)
+   - [4. Normalizzazione Relazionale 1NF (`matrix_normalization_explode.py`)](#4-matrix_normalization_explodepy)
+5. [Note sulla Sicurezza e `.gitignore`](#-note-sulla-sicurezza-e-gitignore)
 
 ---
 
-### 3. `conservation_enrichment_complete.py`
-Questo modulo costituisce il motore di data mining automatizzato in Python progettato per l'arricchimento del nucleo floristico normalizzato del progetto Interreg COrALp (composto da 5.451 entità tassonomiche uniche). Lo script interroga in parallelo e in modo deterministico le API internazionali di riferimento per estrarre metadati legati allo status di conservazione, alle minacce antropiche, ai tratti ecologici e ai vincoli legislativi transfrontalieri della flora alpina.
+## 🔑 Prerequisiti & Guida ai Token API
 
-#### Fonti Interrogate e Tratti Estratti
-1. **IUCN Red List API (v4)**:
-   * Categoria di rischio su tre scale geografiche (Globale, Europeo, Mediterraneo) per analisi geoecologiche comparative.
-   * Classificazione degli habitat naturali (*Habitats Classification Scheme v3.1*).
-   * Minacce attive (*Threats*) e fattori di stress biologico indotto (*Stresses*).
-   * Forme di crescita macro-strutturali (*Growth Forms*) e profili di utilizzo etnobotanico (*Use and Trade*).
-2. **Species+ API (v1) / UNEP-WCMC**:
-   * Grado di tutela cogente internazionale (Appendici CITES I, II, III).
-   * Vincoli normativi di conservazione a scala comunitaria (Allegati della Direttiva Habitat 92/43/CEE).
+Per far funzionare gli script di data mining è necessario richiedere due **Token API**. Un Token è una chiave alfanumerica personale (simile a una password) che consente agli script di identificarsi e fare query ai server ufficiali di IUCN e Species+.
 
-#### Architettura e Tolleranza ai Guasti (Fault Tolerance)
-Data la natura massiva dell'estrazione (oltre 8 ore di elaborazione remota) e i rigidi limiti di frequenza (*Rate-Limiting*) imposti dagli endpoint ufficiali, lo script integra un'architettura robusta per la persistenza dello stato:
-- **Cache di Stato Locale (SQLite)**: Un database locale (`specie_conservazione_completa.db`) tiene traccia dei progressi riga per riga tramite gli stati `DA_ELABORARE` e `COMPLETATO`. In caso di interruzione della rete o crash del sistema, lo script riprende l'elaborazione esattamente dall'ultimo record valido, fungendo da checkpoint di ripristino.
-- **Retry Logic ed Exponential Backoff**: Gestione automatica degli errori HTTP 429 (*Too Many Requests*) e dei timeout di rete mediante cicli di attesa progressivi.
-- **Logging di Sistema**: Tracciamento asincrono dettagliato delle metriche e delle risposte API nel file `enrichment_completo.log`.
+### 1. IUCN Red List API Token (`IUCN_TOKEN`)
+* **A cosa serve:** Permette di interrogare l'API v4 della IUCN Red List per estrarre le categorie di rischio (Globale, Europeo, Mediterraneo), gli habitat, le minacce, i fattori di stress e le forme di crescita.
+* **Come ottenerlo:**
+  1. Registrati o accedi al sito [IUCN Red List API Account Request](https://api.iucnredlist.org/).
+  2. Compila il modulo di richiesta specificando l'uso della ricerca (es. "Research project COrALp").
+  3. Una volta approvata la richiesta, riceverai un token (stringa alfanumerica).
 
----
-
-### 4. `matrix_normalization_explode.py`
-Questo script automatizza la scomposizione e la normalizzazione delle variabili multivalore generate dalle pipeline di data mining (API IUCN). Nel database floristico originario, attributi ecologici complessi come minacce (*Threats*), habitat (*Habitats*), forme di crescita (*Growth Forms*) e fattori di stress (*Stresses*) sono memorizzati come stringhe concatenate e nidificate in formato pseudo-JSON, separate dal delimitatore verticale `|`.
-
-Al fine di convertire queste relazioni molti-a-molti (N:N) in strutture atomiche compatibili con i principi della Prima Forma Normale (1NF) e con l'architettura del database relazionale SQLite del progetto COrALp, lo script esegue una procedura di splitting testuale e un'operazione di *explode* mediante la libreria `pandas`. 
-
-#### Funzionalità Principali
-- **Caricamento Dinamico**: Lettura controllata del foglio `clean_results` dal database centralizzato.
-- **Esplosione delle Relazioni N:N**: Scomposizione delle stringhe multivalore e generazione di righe indipendenti per ciascun attributo ecologico associato al taxon.
-- **Pulizia Sintattica**: Rimozione deterministica tramite espressioni regolari (Regex) dei marcatori residuali dei dizionari e delle stringhe JSON (es. `{'en': '...`).
-- **Filtro del Rumore**: Eliminazione automatica di valori nulli di sistema (`NaN`, `None`, `null`, stringhe vuote).
-- **Deduplicazione Globale**: Rimozione delle ridondanze nominali per garantire l'atomicità e l'integrità referenziale delle matrici risultanti.
-
-#### Output Generato
-Lo script produce un file Excel denominato `Database_Normalizzato_Fogli_Separati.xlsx` articolato in 8 fogli relazionali独立 e pronti per l'importazione nel DBMS:
-1. `Status_IUCN_Global`
-2. `Status_IUCN_Europe`
-3. `Status_IUCN_Mediterranean`
-4. `Growth_Forms`
-5. `Threats`
-6. `Uses_and_Trade`
-7. `Habitats`
-8. `Stresses`
+### 2. Species+ / UNEP-WCMC API Token (`SPECIES_TOKEN`)
+* **A cosa serve:** Consente di accedere all'API v1 di Species+ per recuperare gli allegati delle Direttive UE (es. Direttiva Habitat 92/43/CEE) e le Appendici CITES (I, II, III).
+* **Come ottenerlo:**
+  1. Registrati sulla piattaforma [Species+ API Developer Portal](https://api.speciesplus.net/).
+  2. Crea un account sviluppatore gratuito.
+  3. Copia il tuo **API Token** personale mostrato nella dashboard del profilo.
 
 ---
 
-## ⚙️ Configurazione e Installazione
+## 🛠️ Installazione e Configurazione
 
-### Requisiti Ambiente Python
+### A. Configurazione dell'ambiente Python
+Richiesto: **Python 3.10+**
 
-Crea un ambiente virtuale e installa le dipendenze:
+1. **Clona la repository o scarica i file:**
+   ```bash
+   git clone https://github.com/tuo-username/nome-repository.git
+   cd nome-repository
+   ```
 
-```bash
-python -m venv venv
-source venv/bin/activate  # In Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
+2. **Crea ed attiva un ambiente virtuale (consigliato):**
+   * **Linux / macOS:**
+     ```bash
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
+   * **Windows (PowerShell):**
+     ```powershell
+     python -m venv venv
+     .\venv\Scripts\Activate.ps1
+     ```
 
-Esempio di `requirements.txt`:
-```txt
-pandas
-requests
-openpyxl
-python-dotenv
-```
+3. **Installa le librerie richieste:**
+   ```bash
+   pip install pandas requests openpyxl python-dotenv
+   ```
 
-### Requisiti Ambiente R
+4. **Crea il file `.env` per le credenziali:**
+   Crea un file di testo chiamato esattamente `.env` nella directory principale del progetto e inserisci i tuoi token come segue:
+   ```env
+   IUCN_TOKEN="inserisci_qui_il_tuo_token_iucn"
+   SPECIES_TOKEN="inserisci_qui_il_tuo_token_species_plus"
+   ```
 
-Esegui all'interno della console R:
+### B. Configurazione dell'ambiente R
+Richiesto: **R (v4.0+)** e **RStudio** (opzionale).
+
+Apri la console R ed esegui il seguente comando per installare le dipendenze:
 
 ```R
 install.packages(c("dplyr", "stringr", "tibble", "readxl", "openxlsx", "readr", "remotes"))
@@ -117,30 +89,136 @@ remotes::install_github("matildabrown/rWCVP")
 install.packages("WorldFlora")
 ```
 
-### Variabili d'Ambiente (`.env`)
+---
 
-Crea un file `.env` nella radice del progetto per memorizzare le credenziali API richieste dallo script `conservation_enrichment_complete.py`:
+## 📁 Struttura dei File nel Repository
 
-```env
-IUCN_TOKEN="il_tuo_token_iucn"
-SPECIES_TOKEN="il_tuo_token_species_plus"
+```text
+├── .env                                # File riservato per i Token API (da creare)
+├── .gitignore                          # Esclusione file temporanei e sensibili
+├── taxonomic_reconciliation.R          # Script 1 (R): Riconciliazione tassonomica
+├── gbif_alcotra_occurrences.py         # Script 2 (Python): Query occorrenze GBIF
+├── conservation_enrichment_complete.py # Script 3 (Python): Data mining IUCN/Species+
+├── matrix_normalization_explode.py     # Script 4 (Python): Normalizzazione 1NF
+└── README.md                           # Documentazione della repository
 ```
 
 ---
 
-## 📂 Struttura Raccomandata del File `.gitignore`
+## 🔍 Guida Dettagliata agli Script
 
-Per evitare il caricamento accidentale di dati pesanti, file temporanei o chiavi private sul repository:
+---
+
+### 1. `taxonomic_reconciliation.R`
+Svolge l'allineamento tassonomico standardizzato della checklist floristica grezza, interrogando sia i backbone locali di **WCVP (World Checklist of Vascular Plants)** che quelli di **WFO (World Flora Online)**, con integrazione automatica dei Link **IPNI**.
+
+* **Cosa serve prima di lanciarlo:**
+  * Il file Excel di input (es. `NEW_WCVP_taxonomic_enrichment.xlsx`) contenente la colonna `parsed_name`.
+  * I file CSV dei backbone scaricabili dai rispettivi portali: `wcvp_backbone_csv.csv` (separatore `|`) e `wfo_backbone_csv.csv` (separatore `Tab`).
+* **Cosa eventualmente modificare nello script:**
+  All'inizio dello script, modifica la sezione `SETTAGGI UTENTE` per adattarla alla tua struttura cartelle:
+  ```R
+  input_file <- "C:/percorso/tuo/file_input.xlsx"
+  sheet_name <- "Nome_Foglio"
+  wcvp_backbone_csv <- "wcvp_backbone_csv.csv"
+  wfo_backbone_csv  <- "wfo_backbone_csv.csv"
+  output_file <- "Enriched_FINAL_taxonomic_reconciliation2.0.xlsx"
+  ```
+* **Come eseguirlo:**
+  ```bash
+  Rscript taxonomic_reconciliation.R
+  ```
+* **Output:** Genera un file Excel (`Enriched_FINAL_taxonomic_reconciliation2.0.xlsx`) diviso nei fogli:
+  1. `Unique_Taxa`: Tassonomia consolidata per le specie uniche (priorità WCVP > WFO).
+  2. `Source_Summary`: Mappatura relazionale degli ID.
+  3. `FULL_Enriched`: Dataset originale con l'arricchimento tassonomico completo.
+
+---
+
+### 2. `gbif_alcotra_occurrences.py`
+Calcola in modo automatico e rigoroso il numero di occorrenze botaniche georeferenziate su **GBIF** all'interno delle province e dei dipartimenti dell'area transfrontaliera **ALCOTRA** (Italia/Francia).
+
+* **Territori analizzati:** Torino, Cuneo, Imperia, Valle d'Aosta, Haute-Savoie, Savoie, Hautes-Alpes, Alpes-de-Haute-Provence, Alpes-Maritimes.
+* **Caratteristiche tecniche:**
+  * Utilizza confini amministrativi ufficiali **GADM 4.1**.
+  * Accetta solo match tassonomici esatti (`matchType = EXACT`) per evitare falsi positivi da fuzzy matching.
+  * Integra gestione dei *rate limit* (retry automatico in caso di errori 429/50x).
+* **Cosa eventualmente modificare:**
+  Nella funzione `analizza_checklist()` a fondo pagina, puoi cambiare il file Excel/CSV di input e il nome del file di output:
+  ```python
+  analizza_checklist(
+      input_file="Confronto Bartolucci-COrALp DB.xlsx",
+      output_file="risultati_gbif_alcotra.csv"
+  )
+  ```
+* **Come eseguirlo:**
+  ```bash
+  python gbif_alcotra_occurrences.py
+  ```
+* **Output:** Un CSV (`risultati_gbif_alcotra.csv`) con il conteggio di osservazioni e flag di presenza (`TRUE`/`FALSE`) per ciascuna area ALCOTRA.
+
+---
+
+### 3. `conservation_enrichment_complete.py`
+È il motore principale di data mining per l'arricchimento ecologico-conservazionistico delle specie. Interroga le API ufficiali IUCN e Species+.
+
+* **Parametri estratti:**
+  * **IUCN Red List:** Status Global (Scope 1), Europe (Scope 2), Mediterranean (Scope 4), Growth Forms, Threats, Use and Trade, Habitats (Scheme v3.1), Stresses.
+  * **Species+:** Appendici CITES e Direttiva Habitat UE.
+* **Architettura Fault-Tolerant:**
+  * **Cache SQLite:** Crea in automatico il database locale `specie_conservazione_completa.db` dove salva ogni specie appena viene processata. Se l'esecuzione viene interrotta (es. caduta di connessione o `CTRL+C`), ripartirà dall'ultimo taxon rimasto in stato `DA_ELABORARE`.
+  * **File di Log:** Registra il dettaglio delle operazioni in `enrichment_completo.log`.
+* **Cosa eventualmente modificare:**
+  Nella sezione `CONFIGURAZIONE FILE E PATH`:
+  ```python
+  FILE_EXCEL  = os.path.join(BASE_DIR, "NEW_db.xlsx")  # File Excel di origine
+  NOME_FOGLIO = "clean_results"                        # Foglio da leggere
+  FILE_OUTPUT = os.path.join(BASE_DIR, "WCVP_conservation_enriched_complete.xlsx")
+  ```
+* **Come eseguirlo:**
+  ```bash
+  python conservation_enrichment_complete.py
+  ```
+* **Output:** File Excel finale arricchito (`WCVP_conservation_enriched_complete.xlsx`).
+
+---
+
+### 4. `matrix_normalization_explode.py`
+Risolve il problema delle variabili multivalore concatenate estratte dalle API (es. habitat o minacce separate da `|` o formattate come JSON). Trasforma il dataset in struttura atomica **Prima Forma Normale (1NF)** pronta per DBMS relazionali o SQLite.
+
+* **Funzionalità:**
+  * Esplode (*explode*) le liste molti-a-molti (N:N).
+  * Pulisce i residui di sintassi JSON/Dizionari (es. `{'en': '...`).
+  * Rimuove i duplicati e i valori vuoti di sistema.
+* **Cosa eventualmente modificare:**
+  Nella sezione `CONFIGURAZIONE`:
+  ```python
+  FILE_INPUT  = os.path.join(BASE_DIR, "NEW_db.xlsx")  # Input con i dati grezzi
+  NOME_FOGLIO = "clean_results"
+  FILE_OUTPUT = os.path.join(BASE_DIR, "Database_Normalizzato_Fogli_Separati.xlsx")
+  ```
+* **Come eseguirlo:**
+  ```bash
+  python matrix_normalization_explode.py
+  ```
+* **Output:** File Excel (`Database_Normalizzato_Fogli_Separati.xlsx`) contenente 8 fogli distinti per entità:
+  `Status_IUCN_Global`, `Status_IUCN_Europe`, `Status_IUCN_Mediterranean`, `Growth_Forms`, `Threats`, `Uses_and_Trade`, `Habitats`, `Stresses`.
+
+---
+
+## 🔒 Note sulla Sicurezza e `.gitignore`
+
+Per evitare di caricare accidentalmente dati personali, Token riservati o file pesanti su GitHub, assicuratevi che nella radice del progetto sia presente un file `.gitignore` con questo contenuto:
 
 ```gitignore
-# Variabili d'ambiente e credenziali
+# Variabili d'ambiente e credenziali (MAI caricare i Token)
 .env
 
-# Database locali e file di cache
+# Database di cache locale e log
 *.db
 *.log
 
-# File di dati di input/output e backbone locali
+# File di dati pesanti / Excel di output
 *.xlsx
 *.xls
 *.csv
