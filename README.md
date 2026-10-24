@@ -1,6 +1,9 @@
 # 🌿 Database & Pipeline Computazionale COrALp
 
-Benvenuto nella repository ufficiale della pipeline computazionale sviluppata per il progetto **Interreg COrALp**.
+**Autore:** Alasia Maria Gastaudo 
+**Contesto:** Progetto Interreg ALCOTRA COrALp, [Università degli Studi di Torino], [2025/2026]
+
+Benvenuto nella repository ufficiale della pipeline computazionale sviluppata per il progetto **Interreg COrALp** realizzato da Alasia Maria Gastaudo.
 
 Questa suite di script (in **R** e **Python**) consente di automatizzare l'intero ciclo di vita dei dati floristici per la regione delle Alpi Latine:
 1. **Riconciliazione tassonomica** e risoluzione delle sinonimie botaniche.
@@ -50,8 +53,8 @@ Richiesto: **Python 3.10+**
 
 1. **Clona la repository o scarica i file:**
    ```bash
-   git clone https://github.com/tuo-username/nome-repository.git
-   cd nome-repository
+   git clone https://github.com/alixgasta/COrALp.git
+   cd COrALp
    ```
 
 2. **Crea ed attiva un ambiente virtuale (consigliato):**
