@@ -312,5 +312,5 @@ GitHub mostra anche il pulsante **"Cite this repository"**, generato dal file [`
 Università degli Studi di Torino · Progetto Interreg ALCOTRA COrALp
 
 * GitHub: [github.com/alixgasta](https://github.com/alixgasta)
-* LinkedIn: [linkedin.com/in/TUO-PROFILO](https://www.linkedin.com/in/TUO-PROFILO)
+* LinkedIn: [linkedin.com/in/TUO-PROFILO](www.linkedin.com/in/alasia-maria-gastaudo-343419287)
 * Email: alasia.gastaudo@edu.unito.it
