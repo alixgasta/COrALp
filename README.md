@@ -1,6 +1,6 @@
 # 🌿 Database & Pipeline Computazionale COrALp
 
-**Autore:** Alasia Maria Gastaudo 
+**Autore:** Alasia Maria Gastaudo
 **Contesto:** Progetto Interreg ALCOTRA COrALp, [Università degli Studi di Torino], [2025/2026]
 
 Benvenuto nella repository ufficiale della pipeline computazionale sviluppata per il progetto **Interreg COrALp** realizzato da Alasia Maria Gastaudo.
